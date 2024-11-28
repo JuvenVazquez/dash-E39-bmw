@@ -6,6 +6,14 @@ MCP_CAN CAN(53); //CS pin on arduino 10 mega y nano
 // variables del archivo dash_plugin.dll
 #define PACKET_SYNC 0xFF
 #define PACKET_VER  2
+//fuel con potenciometros X9C103S
+#include "Arduino.h"
+#include "X9C10X.h"  // Incluye la biblioteca X9C10X para controlar el potenciómetro digital
+#define Position 1 //La posicion que quieras que se desplace
+X9C103 pot; 
+X9C103 pot2; 
+float Lfuel =2;
+
 int serial_byte;
 //var DME1 rpm
 byte rpmL;
@@ -48,7 +56,7 @@ byte gearcan2 = 0x00;
   //int retarder_level;//28.-Current level of the retarder.
   int brake_air_pressure; //3.-Pressure in the brake air tank in psi
   int brake_temperature; //4.-Temperature of the brakes in degrees celsius.
-  int fuel_ratio; //5.-Fuel level porcentaje
+  int fuel_ratio = 50; //5.-Fuel level porcentaje
   int fuel;//29.-Amount of fuel in liters
   int fuel_average_consumption;//30.-Average consumption of the fuel in liters/km
   int fuel_range;//31.-Estimated range of truck with current amount of fuel in km
@@ -56,7 +64,7 @@ byte gearcan2 = 0x00;
   //int adblue_average_consumption;//33.-Average consumption of the adblue in liters/km
   int oil_pressure; //6.-Pressure of the oil in psi
   int oil_temperature; //7.-Temperature of the oil in degrees celsius.
-  float water_temperature; //8.-Temperature of the water in degrees celsius.
+  float water_temperature = 17; //8.-Temperature of the water in degrees celsius.
   int battery_voltage; //9.-Voltage of the battery in volts.
   //int light_aux_front;//u32-34.-Are the auxiliary front lights active?
   //int light_aux_roof;//35.-Are the auxiliary roof lights active?
@@ -165,8 +173,14 @@ void setup() {
   digitalWrite(pinFuelwarning, HIGH); // 47
   digitalWrite(pinClusterlight,HIGH); //49
   digitalWrite(PinMotor_brake,LOW); //42
-}
 
+  pot.begin(6, 7, 8);   // Inicializa el potenciómetro con los pines 6 (pulse NC), 7 (directionUD) y 8 (selectCS)
+  pot.setPosition(2);  
+  pot2.begin(9, 10, 11);   // Inicializa el potenciómetro con los pines 9 (pulseNC), 10 (directionUD) y 11 (selectCS)
+  pot2.setPosition(2);  
+}
+//pot.setPosition(4);
+//pot2.setPosition(4);
 void loop() {
 //serial
   if (Serial.available() < 43) //<42
@@ -265,8 +279,10 @@ void loop() {
  //*/ 
 water_temperature =           map(water_temperature, 17, 135,  90, 255); // A + DE NOVENTA ENTRA EL WARNING
 fuel_average_consumption =       map(fuel_average_consumption, 0, 100, 0, 25); //
+ Lfuel = map(fuel_ratio, 0, 100, 0, 5);
 //##############################################################################################################  
-
+pot.setPosition(Lfuel);
+pot2.setPosition(Lfuel);
 rpm = msb_rpm;
 rpm = rpm <<8;
 rpm = rpm + lsb_rpm;
@@ -281,10 +297,10 @@ Speedometer();
 //water (motor) temperature
 DME2();
 // enginecheck and cruise control
-if ((water_temperature_warning != 0 ||oil_pressure_warning != 0 ||battery_voltage_warning != 0 ||wear_engine  >15 ||wear_transmission >15 || wear_cabin >15 || wear_chassis >15 )&& cruise_control > 0)  //==1
+if ((water_temperature_warning != 0 ||oil_pressure_warning != 0 ||battery_voltage_warning != 0 ||wear_engine  >13 ||wear_transmission >15 || wear_cabin >15 || wear_chassis >15 )&& cruise_control > 0)  //==1
  { DME4_Load0 = 0x0A; } //0x0A AMBOS
 else if (cruise_control > 0) {DME4_Load0 = 0x08;}
-else if ((water_temperature_warning != 0 ||oil_pressure_warning != 0 ||battery_voltage_warning != 0 ||wear_engine  >15 ||wear_transmission >15 || wear_cabin >15 || wear_chassis >15)&& electric_enabled)
+else if ((water_temperature_warning != 0 ||oil_pressure_warning != 0 ||battery_voltage_warning != 0 ||wear_engine  >13 ||wear_transmission >15 || wear_cabin >15 || wear_chassis >15)&& electric_enabled)
  { DME4_Load0 = 0x02;} 
 else {DME4_Load0 = 0x00;}
 
